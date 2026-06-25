@@ -1,9 +1,5 @@
 {
-  "name": "faceanimal",
-  "version": "1.0.0",
-  "private": true,
-  "description": "동물상 진단소 - 재미로 보는 동물상 매칭 웹앱",
-  "scripts": {
-    "dev": "echo \"정적 사이트입니다. index.html을 브라우저로 열거나 vercel dev로 실행하세요.\""
-  }
+  "framework": null,
+  "buildCommand": false,
+  "outputDirectory": "."
 }
