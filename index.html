@@ -165,7 +165,7 @@
     position: absolute;
     left: 50%;
     top: 42%;
-    width: 58%;
+    width: 72%;
     aspect-ratio: 1/1;
     transform: translate(-50%, -50%);
     border-radius: 50%;
@@ -198,7 +198,7 @@
     position: absolute;
     left: 50%;
     top: 42%;
-    transform: translate(-50%, calc(-50% + 38%));
+    transform: translate(-50%, calc(-50% + 45%));
     background: var(--gold);
     color: #fff;
     font-family: 'Noto Sans KR', sans-serif;
@@ -428,6 +428,81 @@
     font-weight: 600;
   }
 
+  /* ---------- Ranking (1~3위 상세 순위) ---------- */
+  .ranking-box {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--line);
+    position: relative;
+    text-align: left;
+  }
+
+  .ranking-title {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  .ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ranking-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 12px;
+  }
+
+  .ranking-rank {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--paper);
+    background: var(--ink-soft);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .ranking-item.rank-1 .ranking-rank { background: var(--clay); }
+  .ranking-item.rank-2 .ranking-rank { background: var(--gold); }
+  .ranking-item.rank-3 .ranking-rank { background: var(--moss); }
+
+  .ranking-emoji {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .ranking-name {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    flex: 1;
+  }
+
+  .ranking-percent {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--clay);
+    flex-shrink: 0;
+  }
+
   .retry-row {
     margin-top: 16px;
     display: flex;
@@ -525,6 +600,11 @@
       <p class="desc" id="animalDesc"></p>
 
       <div class="traits" id="animalTraits"></div>
+
+      <div class="ranking-box" id="rankingBox">
+        <div class="ranking-title">상세 순위</div>
+        <div class="ranking-list" id="rankingList"></div>
+      </div>
     </div>
 
     <div class="retry-row">
@@ -533,10 +613,11 @@
 
     <p class="disclaimer">
       <strong>안내</strong><br>
-      이 결과는 사진의 밝기·색감·구도 등을 무작위 요소와 함께 활용한
-      <strong>오락용 콘텐츠</strong>이며, 실제 얼굴 인식이나 생체 정보 분석을
-      수행하지 않습니다. 의학적·과학적 근거가 없는 재미용 결과로만
-      봐주세요.
+      이 결과는 사진의 밝기·색감·대비 등 단순 이미지 통계를 활용해
+      재미로 산출한 <strong>오락용 콘텐츠</strong>이며, 실제 얼굴 인식이나
+      생체 정보 분석을 수행하지 않습니다. 1~3위 상세 순위 역시 동일한
+      방식으로 계산된 참고용 수치이며, 의학적·과학적 근거가 없는
+      재미용 결과로만 봐주세요.
     </p>
   </div>
 
@@ -572,6 +653,7 @@
   const matchPercent = document.getElementById('matchPercent');
   const faceGuide = document.getElementById('faceGuide');
   const faceTag = document.getElementById('faceTag');
+  const rankingList = document.getElementById('rankingList');
 
   let stream = null;
   let mediaReady = false; // true once a photo or live frame is ready to analyze
@@ -783,21 +865,53 @@
     return hash;
   }
 
-  function pickAnimal(stats){
-    // 사진이 없으면(분석 실패 시) 시간 기반으로라도 일관된 값을 만들어 사용
-    let hash;
+  // 동물 6종 전체에 대해 각각의 "유사도 점수"를 계산하고, 높은 순으로 정렬해서 순위를 반환
+  // 같은 사진이면 항상 같은 순위가 나오도록 hash 기반으로만 계산 (Math.random 사용 안 함)
+  function rankAnimals(stats){
+    let baseHash;
     if(stats){
-      hash = hashStats(stats);
+      baseHash = hashStats(stats);
     } else {
-      hash = 123456789; // 분석 불가 시 고정값(같은 상황엔 항상 같은 결과)
+      baseHash = 123456789;
     }
 
-    const index = hash % ANIMALS.length;
-    const matchScore = 72 + (Math.floor(hash / ANIMALS.length) % 23); // 72~94%
-    return { animal: ANIMALS[index], match: matchScore };
+    const scored = ANIMALS.map((animal, i) => {
+      // 동물마다 다른 파생 해시를 만들어 각자의 점수를 산출
+      const h = (baseHash * (i * 2 + 7) + i * 104729) >>> 0;
+      const score = 40 + (h % 60); // 40~99 범위의 점수
+      return { animal, score };
+    });
+
+    // 점수 높은 순으로 정렬
+    scored.sort((a, b) => b.score - a.score);
+
+    // 1위 점수를 72~94% 사이로 보정(기존 느낌 유지), 2위/3위는 1위보다 낮게 비율 보정
+    const topRaw = scored[0].score;
+    const normalized = scored.map((item, rank) => {
+      let pct;
+      if(rank === 0){
+        pct = 72 + (item.score % 23); // 72~94%
+      } else {
+        // 순위가 내려갈수록 1위 점수보다 점점 낮아지도록
+        const gap = 8 + (item.score % 10) + rank * 6; // 점수 차 보정
+        pct = Math.max(5, (72 + (topRaw % 23)) - gap - (rank - 1) * 9);
+      }
+      return { animal: item.animal, match: pct };
+    });
+
+    return normalized; // [{animal, match}, ...] 점수 내림차순
   }
 
-  function renderResult(animal, match){
+  function pickAnimal(stats){
+    const ranking = rankAnimals(stats);
+    return ranking[0]; // 기존 코드와의 호환을 위해 1위만 반환하는 함수도 유지
+  }
+
+  function renderResult(ranking){
+    const top = ranking[0];
+    const animal = top.animal;
+    const match = top.match;
+
     animalEmoji.textContent = animal.emoji;
     animalName.textContent = animal.name;
     animalHanja.textContent = animal.hanja;
@@ -811,6 +925,22 @@
     });
     matchPercent.textContent = match + '%';
     matchFill.style.width = '0%';
+
+    // 1~3위 상세 순위 렌더링 (기존 분석 결과는 그대로 유지하고, 추가 정보로 아래에 표시)
+    rankingList.innerHTML = '';
+    ranking.slice(0, 3).forEach((item, i) => {
+      const rank = i + 1;
+      const row = document.createElement('div');
+      row.className = `ranking-item rank-${rank}`;
+      row.innerHTML = `
+        <div class="ranking-rank">${rank}</div>
+        <div class="ranking-emoji">${item.animal.emoji}</div>
+        <div class="ranking-name">${item.animal.name}</div>
+        <div class="ranking-percent">${item.match}%</div>
+      `;
+      rankingList.appendChild(row);
+    });
+
     resultSection.classList.add('show');
     requestAnimationFrame(() => {
       setTimeout(() => { matchFill.style.width = match + '%'; }, 50);
@@ -842,8 +972,8 @@
     clearInterval(interval);
     loadingText.textContent = '';
 
-    const { animal, match } = pickAnimal(stats);
-    renderResult(animal, match);
+    const ranking = rankAnimals(stats);
+    renderResult(ranking);
     enableDiagnose();
   }
 
